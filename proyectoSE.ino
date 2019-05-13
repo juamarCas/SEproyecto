@@ -1,20 +1,26 @@
 
+
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-const double sound = 34300; // velocidad del sonido en cm/s
-const double periodSecond = 0.0000005; // periodo del ciclo de reloj en segundos
+
 int timer; // tendrá a TCNT1
-uint16_t distance; // se da en cm
 int counter;
 
 unsigned int result = 0;
 
-#define LED PD4
+
 /*Timer 1, usado para el sensor de ultrasonido*/
-#define StartTimer2 TCCR2B = (1 << CS22) | (1 << CS21)  | (1 << CS20); // prescaller 256;
+#define StartTimer2 TCCR2B = (1 << CS22) | (1 << CS21)  | (1 << CS20); // prescaller 1024;
 #define StopTimer2 TCCR2B &= 0B11111000;
 #define timerA2 TCCR2A = 0x00;
+/*Timer 0 usado con interrupción para constantemente checar el estado*/
+#define StartTimer0 TCCR0B = (1 << CS02) | (1 << CS00); //prescaller 64
+#define StopTimer0 TCCR0B = 0B11111000;
+#define timerA0 TCCR0A = 0x00;
+#define configTimerA0 TCCR0A = (1 << WGM01);
+#define activateTimeInt  TIMSK0 = (1 << OCIE0A);
+#define stopTimeInt TIMSK0 = 0x00;
 /*Sensor ultrasonido*/
 #define Echo PC1
 #define trigger PC0
@@ -22,22 +28,23 @@ unsigned int result = 0;
 #define noObs -2
 /*Servomotor*/
 /*Control de motores*/
-
+#define n1 PD0
+#define n2 PD1
+#define n3 PD3
+#define n4 PD4
 /*0 entrada, 1 salida*/
 void setup() {
   Serial.begin(9600);
-  DDRD = (1 << LED); // pd7 salida
+  DDRD = (1 << n1) | (1 << n2) | (1 << n3) | (1 << n4); //salidas hacia el puente h
   DDRC = (1 << trigger); // PC0 es trigger PC1 es echo
   DDRB = (1 << PB2);
-  TCCR0A = (1 << WGM01);
-  TCCR0B = (1 << CS02) | (1 << CS00); //prescaller 64
-  TIMSK0 = (1 << OCIE0A);
+  configTimerA0;
+  StartTimer0;//prescaller 64
+  activateTimeInt;
   TCCR1A = _BV(COM1B1) | _BV(WGM11) | _BV(WGM10);
   TCCR1B = _BV(WGM13) | _BV(WGM12) | _BV(CS11);
   OCR1A = 39999;  // 50Hz pwm
   OCR1B = 3000; // t_on = 1.5 ms, port B as output. PB2 (pin 16) is OC1B
-
- 
   OCR0A = 157; // 0.01 seg
 
   //TCCR1B = (1 << CS11); // prescaller de 8
@@ -56,6 +63,36 @@ void loop() {
    
 
 }
+
+bool CheckLeft(){
+
+
+  
+}
+
+bool CheckRight(){
+
+
+  
+}
+
+void GoBack(){
+
+  
+}
+
+void Stop(){
+
+
+  
+}
+
+void StopTimer0(){
+
+
+  
+}
+
 
 
 void TakeDistance() {
