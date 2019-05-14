@@ -1,18 +1,16 @@
 
-// By Juan David Martín Castillo, María Carolina Rosanía Suárez, Nataly Navarro Hernandez
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
 
-int timer; // tendrá a TCNT1
+int timer; // tendrá a TCNT2
 int counter;
 bool right; 
 bool left;
-bool isChecking;
 unsigned int result = 0;
 
 
-/*Timer 1, usado para el sensor de ultrasonido*/
+/*Timer 2, usado para el sensor de ultrasonido*/
 #define StartTimer2 TCCR2B = (1 << CS22) | (1 << CS21)  | (1 << CS20); // prescaller 1024;
 #define StopTimer2 TCCR2B &= 0B11111000;
 #define timerA2 TCCR2A = 0x00;
@@ -116,6 +114,7 @@ void Stop(){
 }
 
 void stop_Timer0(){
+  //no cuente
   StopTimer0;
   timerA0;
   stopTimeInt;
@@ -124,6 +123,7 @@ void stop_Timer0(){
 }
 
 void init_Timer0(){
+  //empieza a contar
   StartTimer0;
   configTimerA0;
   activateTimeInt; 
@@ -184,7 +184,7 @@ uint16_t GetPulseWidth() {
 
 ISR(TIMER0_COMPA_vect) {
   counter++;
-  if (counter >= 10 /*&& isChecking == false*/) {
+  if (counter >= 10) {
     TakeDistance();
     timer = GetPulseWidth();
     counter = 0;
