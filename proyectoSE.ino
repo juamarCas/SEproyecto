@@ -6,7 +6,9 @@
 
 int timer; // tendrá a TCNT1
 int counter;
-
+bool right; 
+bool left;
+bool isChecking;
 unsigned int result = 0;
 
 
@@ -32,20 +34,21 @@ unsigned int result = 0;
 #define n2 PD1
 #define n3 PD3
 #define n4 PD4
+#define motor01 PD5
+#define motor02 PD6
 /*0 entrada, 1 salida*/
 void setup() {
   Serial.begin(9600);
-  DDRD = (1 << n1) | (1 << n2) | (1 << n3) | (1 << n4); //salidas hacia el puente h
+  DDRD = (1 << n1) | (1 << n2) | (1 << n3) | (1 << n4) | (1 << motor01) | (1 << motor02); //salidas hacia el puente h y motores
   DDRC = (1 << trigger); // PC0 es trigger PC1 es echo
   DDRB = (1 << PB2);
-  configTimerA0;
-  StartTimer0;//prescaller 64
-  activateTimeInt;
+  init_Timer0();
   TCCR1A = _BV(COM1B1) | _BV(WGM11) | _BV(WGM10);
   TCCR1B = _BV(WGM13) | _BV(WGM12) | _BV(CS11);
   OCR1A = 39999;  // 50Hz pwm
   OCR1B = 3000; // t_on = 1.5 ms, port B as output. PB2 (pin 16) is OC1B
-  OCR0A = 157; // 0.01 seg
+  // 2000 izquierda
+  // 4000 derecha
 
   //TCCR1B = (1 << CS11); // prescaller de 8
   TCNT1 = 0;
@@ -55,24 +58,49 @@ void setup() {
 void loop() {
 
   if(timer <= 26){
-    OCR1B = 2000;
+    //isChecking = true;
+    _delay_ms(700);
+    stop_Timer0();
+    left = CheckLeft();
+    right = CheckRight();
+    
+    if(left && !right){
+      //do
+    }else if(left && right){
+      OCR1B = 2000; 
+      _delay_ms(1000);
+    }else if(!left && right){
+      
+    }else{
+      //do
+    }
+    init_Timer0();
+    //OCR1B = 2000;
   }else{
     OCR1B = 3000;
   }
-   //Serial.println(timer);
+  
    
 
 }
 
 bool CheckLeft(){
-
-
-  
+  OCR1B = 2000;
+  TakeDistance();
+  timer = GetPulseWidth();
+  _delay_ms(1000);
+  Serial.println(timer);
+  return timer >= 26;
 }
 
 bool CheckRight(){
-
-
+  OCR1B = 4000;
+  TakeDistance();
+  timer = GetPulseWidth();
+  _delay_ms(1000);
+  Serial.println(timer);
+  return timer >= 26;
+  
   
 }
 
@@ -87,10 +115,19 @@ void Stop(){
   
 }
 
-void StopTimer0(){
-
+void stop_Timer0(){
+  StopTimer0;
+  timerA0;
+  stopTimeInt;
 
   
+}
+
+void init_Timer0(){
+  StartTimer0;
+  configTimerA0;
+  activateTimeInt; 
+  OCR0A = 157; // 0.01 seg
 }
 
 
@@ -105,7 +142,7 @@ uint16_t GetPulseWidth() {
   uint32_t i, result;
   // flanco de subida
 
-  for (i = 0; i < 60000; i++) {
+  for (i = 0; i < 600000; i++) {
     if (!(PINC & (1 << Echo))) {
       continue;
     } else {
@@ -113,14 +150,14 @@ uint16_t GetPulseWidth() {
     }
   }
 
-  if ( i == 60000) {
+  if ( i == 600000) {
     return error; // se acabó el tiempo
   }
   timerA2;
   StartTimer2;
   TCNT2 = 0x00; // comienza el conteo
 
-  for (i = 0; i < 60000; i++) {
+  for (i = 0; i < 600000; i++) {
     if (PINC & (1 << Echo)) {
       if (TCNT2 > 200) {
         break;
@@ -133,7 +170,7 @@ uint16_t GetPulseWidth() {
     }
   }
 
-  if (i == 60000) {
+  if (i == 600000) {
     return noObs;
   }
 
@@ -147,9 +184,11 @@ uint16_t GetPulseWidth() {
 
 ISR(TIMER0_COMPA_vect) {
   counter++;
-  if (counter >= 10) {
+  if (counter >= 10 /*&& isChecking == false*/) {
     TakeDistance();
     timer = GetPulseWidth();
+    counter = 0;
+    //Serial.println(timer);
    
 
   }
