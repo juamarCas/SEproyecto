@@ -1,4 +1,3 @@
-//by Juan Martín, María Rosanía, Nataly Navarro
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
@@ -35,6 +34,8 @@ unsigned int result = 0;
 #define n2 PD1
 #define n3 PD3
 #define n4 PD4
+#define l 1
+#define r 0 // l -> izquierda, r -> derecha
 /*0 entrada, 1 salida*/
 void setup() {
   DDRD = (1 << n1) | (1 << n2) | (1 << n3) | (1 << n4) ; //salidas hacia el puente h
@@ -45,7 +46,7 @@ void setup() {
   TCCR1A = _BV(COM1B1) | _BV(WGM11) | _BV(WGM10);
   TCCR1B = _BV(WGM13) | _BV(WGM12) | _BV(CS11);
   OCR1A = 39999;  // 50Hz pwm
-  OCR1B = 3000; // t_on = 1.5 ms, port B as output. PB2 (pin 16) is OC1B
+  OCR1B = pos1; // t_on = 1.5 ms, port B as output. PB2 (pin 16) is OC1B
   // 2000 izquierda
   // 4000 derecha
 
@@ -62,60 +63,56 @@ void loop() {
     Stop();
     _delay_ms(700);
     canMove = false;
-    left = CheckLeft();
-    right = CheckRight();
+    left = CheckSides(pos2);
+    right = CheckSides(pos3);
 
     if (left && !right) {
+      GoBack(200);//retrocede un poco
+      TurnSide(l);
       
-      //retrocede un poco
     } else if (left && right) {
       //si ambos son verdad que escoja por defecto la izquierda
-      _delay_ms(1000);
+      GoBack(200);
+      TurnSide(l);
     } else if (!left && right) {
-      //retrocede un poco
+      GoBack(200);  //retrocede un poco
+      TurnSide(r);
+    
     } else {
       while (left == false && right == false) {
         GoBack(500);
-        left = CheckLeft();
-        right = CheckRight();
+        left = CheckSides(pos2);
+        right = CheckSides(pos3);
       }
       if ( left ) {
         // va a la izquierda
+        TurnSide(l);
       } else if ( right ) {
         // va a la derecha
+        TurnSide(r);
       } else if ( right && left) {
         // si en ambos casos es verdad que escoja la derecha por defecto
+        TurnSide(r);
       }
     }
     init_Timer0();
     motor_forward();
     //OCR1B = 2000;
   } else {
-    OCR1B = 3000;
+    OCR1B = pos1;
   }
 
 
 
 }
 
-bool CheckLeft() {
-  OCR1B = 2000;
+bool CheckSides(int pos){
+   OCR1B = pos;
   TakeDistance();
   timer = GetPulseWidth();
   _delay_ms(1000);
 
   return timer >= 26;
-}
-
-bool CheckRight() {
-  OCR1B = 4000;
-  TakeDistance();
-  timer = GetPulseWidth();
-  _delay_ms(1000);
-
-  return timer >= 26;
-
-
 }
 
 void motor_forward() { // ir adelante
@@ -124,19 +121,30 @@ void motor_forward() { // ir adelante
 }
 
 void GoBack(int y) { // y es el tiempo activo de los motores
+  OCR1B = pos1;
+  _delay_ms(500);
   PORTD = (1 << n2) | (1 << n4);
   PORTD &= ~((1 << n1) | (1 << n3));
-  _delay_ms(y);
+  while(y--){
+    _delay_ms(1);
+  }
   Stop();
 
 }
 
-void TurnRight(){
-  
-}
+void TurnSide(int dir){ //girar
+  if(dir == l){ // dirección izquierda
+     PORTD &= ~((1 << n1) | (1 << n2) | (1 << n3));
+    PORTD = (1 << n4);
+    _delay_ms(250);
+  }else if (dir == r){ // dirección derecha
+    PORTD &= ~((1 << n3) | (1 << n4) | (1 << n1));
+    PORTD = (1 << n2);
+    _delay_ms(250);
+    
+  }
 
-void TurnLeft(){
-  
+  Stop();
 }
 
 
