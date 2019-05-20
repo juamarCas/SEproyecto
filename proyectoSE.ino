@@ -5,10 +5,10 @@
 
 int timer; // tendrá a TCNT2
 int counter;
-bool right; 
+bool right;
 bool left;
+bool canMove = true;
 unsigned int result = 0;
-
 
 /*Timer 2, usado para el sensor de ultrasonido*/
 #define StartTimer2 TCCR2B = (1 << CS22) | (1 << CS21)  | (1 << CS20); // prescaller 1024;
@@ -27,20 +27,21 @@ unsigned int result = 0;
 #define error -1
 #define noObs -2
 /*Servomotor*/
+#define pos1 3000
+#define pos2 2000 // 3000 es el centro
+#define pos3 4000
 /*Control de motores*/
 #define n1 PD0
 #define n2 PD1
 #define n3 PD3
 #define n4 PD4
-#define motor01 PD5
-#define motor02 PD6
 /*0 entrada, 1 salida*/
 void setup() {
-  Serial.begin(9600);
-  DDRD = (1 << n1) | (1 << n2) | (1 << n3) | (1 << n4) | (1 << motor01) | (1 << motor02); //salidas hacia el puente h y motores
+  DDRD = (1 << n1) | (1 << n2) | (1 << n3) | (1 << n4) ; //salidas hacia el puente h
   DDRC = (1 << trigger); // PC0 es trigger PC1 es echo
   DDRB = (1 << PB2);
   init_Timer0();
+  motor_forward();
   TCCR1A = _BV(COM1B1) | _BV(WGM11) | _BV(WGM10);
   TCCR1B = _BV(WGM13) | _BV(WGM12) | _BV(CS11);
   OCR1A = 39999;  // 50Hz pwm
@@ -55,78 +56,108 @@ void setup() {
 
 void loop() {
 
-  if(timer <= 26){
-    //isChecking = true;
-    _delay_ms(700);
+  if (timer <= 26) {
+
     stop_Timer0();
+    Stop();
+    _delay_ms(700);
+    canMove = false;
     left = CheckLeft();
     right = CheckRight();
-    
-    if(left && !right){
-      //do
-    }else if(left && right){
-      OCR1B = 2000; 
-      _delay_ms(1000);
-    }else if(!left && right){
+
+    if (left && !right) {
       
-    }else{
-      //do
+      //retrocede un poco
+    } else if (left && right) {
+      //si ambos son verdad que escoja por defecto la izquierda
+      _delay_ms(1000);
+    } else if (!left && right) {
+      //retrocede un poco
+    } else {
+      while (left == false && right == false) {
+        GoBack(500);
+        left = CheckLeft();
+        right = CheckRight();
+      }
+      if ( left ) {
+        // va a la izquierda
+      } else if ( right ) {
+        // va a la derecha
+      } else if ( right && left) {
+        // si en ambos casos es verdad que escoja la derecha por defecto
+      }
     }
     init_Timer0();
+    motor_forward();
     //OCR1B = 2000;
-  }else{
+  } else {
     OCR1B = 3000;
   }
-  
-   
+
+
 
 }
 
-bool CheckLeft(){
+bool CheckLeft() {
   OCR1B = 2000;
   TakeDistance();
   timer = GetPulseWidth();
   _delay_ms(1000);
-  Serial.println(timer);
+
   return timer >= 26;
 }
 
-bool CheckRight(){
+bool CheckRight() {
   OCR1B = 4000;
   TakeDistance();
   timer = GetPulseWidth();
   _delay_ms(1000);
-  Serial.println(timer);
+
   return timer >= 26;
-  
+
+
+}
+
+void motor_forward() { // ir adelante
+  PORTD = (1 << n1) | (1 << n3);
+  PORTD &= ~((1 << n2) | (1 << n4));
+}
+
+void GoBack(int y) { // y es el tiempo activo de los motores
+  PORTD = (1 << n2) | (1 << n4);
+  PORTD &= ~((1 << n1) | (1 << n3));
+  _delay_ms(y);
+  Stop();
+
+}
+
+void TurnRight(){
   
 }
 
-void GoBack(){
-
+void TurnLeft(){
   
 }
 
-void Stop(){
 
-
-  
+void Stop() {
+  PORTD &= ~((1 << n1) | (1 << n2) | (1 << n3) | (1 << n4));
 }
 
-void stop_Timer0(){
+void stop_Timer0() {
   //no cuente
   StopTimer0;
   timerA0;
   stopTimeInt;
 
-  
+
 }
 
-void init_Timer0(){
+void init_Timer0() {
   //empieza a contar
   StartTimer0;
   configTimerA0;
-  activateTimeInt; 
+  activateTimeInt;
   OCR0A = 157; // 0.01 seg
 }
 
@@ -137,6 +168,8 @@ void TakeDistance() {
   _delay_us(15);
   PORTC &= ~(1 << trigger);
 }
+
+
 
 uint16_t GetPulseWidth() {
   uint32_t i, result;
@@ -189,7 +222,7 @@ ISR(TIMER0_COMPA_vect) {
     timer = GetPulseWidth();
     counter = 0;
     //Serial.println(timer);
-   
+
 
   }
 }
